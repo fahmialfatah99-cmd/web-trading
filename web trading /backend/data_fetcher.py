@@ -4,6 +4,7 @@ import asyncio
 from typing import Dict, List, Optional
 from datetime import datetime, timedelta
 import httpx
+import numpy as np
 from config import *
 
 logger = logging.getLogger(__name__)
@@ -13,7 +14,7 @@ class DataFetcher:
     
     @staticmethod
     async def fetch_yahoo_finance(symbol: str, period: str = "1mo") -> Optional[Dict]:
-        """Fetch data from Yahoo Finance API"""
+        """Fetch data from Yahoo Finance API - FIXED VERSION"""
         ticker_symbol = f"{symbol}.JK" if not symbol.endswith(".JK") else symbol
         
         url = "https://query1.finance.yahoo.com/v8/finance/chart/{}"
@@ -69,47 +70,56 @@ class DataFetcher:
                 
                 candles = []
                 for i in range(len(timestamps)):
-                    if quotes['close'][i] is None:
+                    try:
+                        if quotes['close'][i] is None:
+                            continue
+                        
+                        candle = {
+                            'timestamp': timestamps[i],
+                            'date': datetime.fromtimestamp(timestamps[i]).strftime('%Y-%m-%d'),
+                            'open': round(float(quotes['open'][i]), 2) if quotes['open'][i] else 0.0,
+                            'high': round(float(quotes['high'][i]), 2) if quotes['high'][i] else 0.0,
+                            'low': round(float(quotes['low'][i]), 2) if quotes['low'][i] else 0.0,
+                            'close': round(float(quotes['close'][i]), 2),
+                            'volume': int(quotes['volume'][i]) if quotes['volume'][i] else 0,
+                            'adjclose': round(float(quotes.get('adjclose', [None] * len(timestamps))[i] or quotes['close'][i]), 2)
+                        }
+                        candles.append(candle)
+                    except (TypeError, ValueError) as e:
+                        logger.warning(f"Error parsing candle at index {i}: {e}")
                         continue
-                    
-                    candle = {
-                        'timestamp': timestamps[i],
-                        'date': datetime.fromtimestamp(timestamps[i]).strftime('%Y-%m-%d'),
-                        'open': round(quotes['open'][i], 2) if quotes['open'][i] else 0,
-                        'high': round(quotes['high'][i], 2) if quotes['high'][i] else 0,
-                        'low': round(quotes['low'][i], 2) if quotes['low'][i] else 0,
-                        'close': round(quotes['close'][i], 2),
-                        'volume': int(quotes['volume'][i]) if quotes['volume'][i] else 0,
-                        'adjclose': round(quotes.get('adjclose', [None] * len(timestamps))[i] or quotes['close'][i], 2)
-                    }
-                    candles.append(candle)
                 
                 if not candles:
+                    logger.warning(f"No valid candles found for {symbol}")
                     return None
                 
                 meta = result.get("meta", {})
-                current_price = candles[-1]['close']
-                prev_close = meta.get('previousClose', candles[-2]['close'] if len(candles) > 1 else current_price)
+                current_price = float(candles[-1]['close'])
+                prev_close = float(meta.get('previousClose', candles[-2]['close'] if len(candles) > 1 else current_price))
+                
+                if prev_close == 0:
+                    prev_close = current_price
+                
                 change_percent = ((current_price - prev_close) / prev_close * 100) if prev_close != 0 else 0
                 
                 return {
                     "symbol": symbol,
                     "current_price": current_price,
                     "prev_close": round(prev_close, 2),
-                    "change_percent": round(change_percent, 2),
+                    "change_percent": round(float(change_percent), 2),
                     "candles": candles[-60:],  # Last 60 candles
                     "currency": meta.get('currency', 'IDR'),
-                    "high_52w": round(meta.get('fiftyTwoWeekHigh', current_price), 2),
-                    "low_52w": round(meta.get('fiftyTwoWeekLow', current_price), 2),
-                    "market_cap": meta.get('marketCap', 0),
-                    "volume_avg": round(np.mean([c['volume'] for c in candles if c['volume'] > 0]), 0) if candles else 0
+                    "high_52w": round(float(meta.get('fiftyTwoWeekHigh', current_price)), 2),
+                    "low_52w": round(float(meta.get('fiftyTwoWeekLow', current_price)), 2),
+                    "market_cap": int(meta.get('marketCap', 0)) if meta.get('marketCap') else 0,
+                    "volume_avg": round(float(np.mean([c['volume'] for c in candles if c['volume'] > 0])), 0) if candles else 0.0
                 }
         
         except httpx.HTTPError as e:
             logger.error(f"HTTP error fetching {symbol}: {e}")
             return None
         except Exception as e:
-            logger.error(f"Error fetching {symbol}: {e}")
+            logger.error(f"Error fetching {symbol}: {e}", exc_info=True)
             return None
     
     @staticmethod
@@ -119,14 +129,12 @@ class DataFetcher:
             try:
                 data = await DataFetcher.fetch_yahoo_finance(symbol, period)
                 if data:
-                    logger.info(f"Successfully fetched {symbol} on attempt {attempt + 1}")
+                    logger.info(f"✅ Successfully fetched {symbol} on attempt {attempt + 1}")
                     return data
             except Exception as e:
-                logger.warning(f"Attempt {attempt + 1} failed for {symbol}: {e}")
+                logger.warning(f"⚠️  Attempt {attempt + 1} failed for {symbol}: {e}")
                 if attempt < retries - 1:
                     await asyncio.sleep(1)  # Wait before retry
         
-        logger.error(f"Failed to fetch {symbol} after {retries} attempts")
+        logger.error(f"❌ Failed to fetch {symbol} after {retries} attempts")
         return None
-
-import numpy as np
