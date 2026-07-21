@@ -3,158 +3,625 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IDX Stock Terminal</title>
+    <title>IDX Stock Terminal - Advanced Trading Analysis</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
-        *{margin:0;padding:0;box-sizing:border-box}
-        body{font-family:Arial,sans-serif;background:#0a0a0a;color:#e5e5e5;min-height:100vh;padding:20px}
-        .container{max-width:1200px;margin:0 auto}
-        header{display:flex;justify-content:space-between;align-items:center;padding:20px;border-bottom:1px solid #333;margin-bottom:20px}
-        h1{color:#f59e0b;font-size:24px}
-        .search-box{display:flex;gap:10px}
-        input[type="text"]{padding:10px 15px;border:1px solid #333;border-radius:5px;background:#111;color:#fff;font-size:14px;width:200px}
-        input[type="text"]:focus{outline:none;border-color:#f59e0b}
-        button{padding:10px 20px;background:#f59e0b;border:none;border-radius:5px;color:#000;font-weight:bold;cursor:pointer}
-        button:hover{background:#d97706}
-        button:disabled{opacity:0.5}
-        .main-content{display:grid;grid-template-columns:2fr 1fr;gap:20px}
-        .card{background:#111;border:1px solid #333;border-radius:8px;padding:20px}
-        .card h2{margin-bottom:15px;font-size:18px;color:#f59e0b}
-        .stock-info{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
-        .stock-price{font-size:32px;font-weight:bold}
-        .stock-change{font-size:18px;font-weight:bold;padding:5px 10px;border-radius:4px}
-        .positive{color:#00c853;background:rgba(0,200,83,0.1)}
-        .negative{color:#ff3d00;background:rgba(255,61,0,0.1)}
-        .chart-container{height:300px;position:relative;margin-top:20px}
-        .stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:20px}
-        .stat-item{background:rgba(0,0,0,0.3);padding:15px;border-radius:5px;text-align:center}
-        .stat-label{font-size:12px;color:#666;margin-bottom:5px}
-        .stat-value{font-size:18px;font-weight:bold}
-        .sidebar{display:flex;flex-direction:column;gap:20px}
-        textarea{width:100%;min-height:80px;background:rgba(0,0,0,0.5);border:1px solid #333;border-radius:5px;padding:10px;color:#fff;resize:vertical;margin-bottom:10px}
-        .sentiment-result{margin-top:15px;padding:15px;background:rgba(0,0,0,0.5);border-left:3px solid #f59e0b;border-radius:4px;display:none}
-        .loading{text-align:center;padding:40px;color:#666;display:none}
-        .error{background:rgba(255,61,0,0.1);border:1px solid #ff3d00;color:#ff3d00;padding:15px;border-radius:5px;margin-top:20px;display:none}
-        .quick-stocks{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
-        .stock-btn{padding:5px 15px;background:#1a1a1a;border:1px solid #333;border-radius:4px;color:#e5e5e5;cursor:pointer;font-size:12px}
-        .stock-btn:hover{background:#f59e0b;color:#000}
-        @media(max-width:768px){.main-content{grid-template-columns:1fr}header{flex-direction:column;gap:15px}.search-box{width:100%}input[type="text"]{flex:1}}
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg-dark: #0f1419;
+            --bg-darker: #0a0d12;
+            --bg-card: #1a1f2e;
+            --border-color: #2d3748;
+            --text-primary: #e5e7eb;
+            --text-secondary: #9ca3af;
+            --accent-primary: #f59e0b;
+            --accent-success: #10b981;
+            --accent-danger: #ef4444;
+            --accent-warning: #f97316;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, var(--bg-darker) 0%, var(--bg-dark) 100%);
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding: 0;
+        }
+        .container { max-width: 1600px; margin: 0 auto; padding: 20px; }
+        
+        /* Header */
+        header {
+            background: rgba(26, 31, 46, 0.8);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--border-color);
+            padding: 20px 0;
+            margin-bottom: 30px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 20px;
+        }
+        h1 {
+            color: var(--accent-primary);
+            font-size: 28px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .search-box {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        input[type="text"] {
+            padding: 12px 16px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--bg-card);
+            color: var(--text-primary);
+            font-size: 14px;
+            width: 200px;
+            transition: all 0.3s;
+        }
+        input[type="text"]:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.1);
+        }
+        button {
+            padding: 12px 24px;
+            background: var(--accent-primary);
+            border: none;
+            border-radius: 8px;
+            color: #000;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        button:hover:not(:disabled) {
+            background: #d97706;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        /* Cards */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+        .card h2 {
+            margin-bottom: 20px;
+            font-size: 20px;
+            color: var(--accent-primary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        /* Main Layout */
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            gap: 20px;
+        }
+        
+        /* Stock Info */
+        .stock-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .stock-price-section h3 {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-bottom: 5px;
+        }
+        .stock-price {
+            font-size: 36px;
+            font-weight: bold;
+            color: var(--text-primary);
+        }
+        .stock-change {
+            font-size: 16px;
+            font-weight: 600;
+            padding: 8px 16px;
+            border-radius: 6px;
+            display: inline-block;
+        }
+        .positive { color: var(--accent-success); background: rgba(16, 185, 129, 0.1); }
+        .negative { color: var(--accent-danger); background: rgba(239, 68, 68, 0.1); }
+        
+        /* Chart */
+        .chart-container {
+            position: relative;
+            height: 400px;
+            margin-bottom: 20px;
+        }
+        
+        /* Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .stat-item {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            border: 1px solid var(--border-color);
+        }
+        .stat-label { font-size: 12px; color: var(--text-secondary); margin-bottom: 8px; }
+        .stat-value { font-size: 18px; font-weight: 600; color: var(--text-primary); }
+        
+        /* Sidebar */
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        /* Trading Decision */
+        .decision-box {
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid;
+        }
+        .decision-buy { border-left-color: var(--accent-success); background: rgba(16, 185, 129, 0.1); }
+        .decision-sell { border-left-color: var(--accent-danger); background: rgba(239, 68, 68, 0.1); }
+        .decision-hold { border-left-color: var(--accent-warning); background: rgba(249, 115, 22, 0.1); }
+        .decision-action {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .decision-buy .decision-action { color: var(--accent-success); }
+        .decision-sell .decision-action { color: var(--accent-danger); }
+        .decision-hold .decision-action { color: var(--accent-warning); }
+        .decision-confidence {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 10px;
+        }
+        .confidence-bar {
+            width: 100%;
+            height: 6px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .confidence-fill {
+            height: 100%;
+            background: var(--accent-primary);
+            transition: width 0.3s;
+        }
+        .decision-details {
+            font-size: 12px;
+            margin-top: 15px;
+            line-height: 1.6;
+        }
+        .price-target { color: var(--accent-success); }
+        .stop-loss { color: var(--accent-danger); }
+        
+        /* Indicators */
+        .indicators-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+        .indicator {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 12px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+        }
+        .indicator-label { font-size: 11px; color: var(--text-secondary); }
+        .indicator-value {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-top: 4px;
+        }
+        
+        /* Loading */
+        .loading {
+            text-align: center;
+            padding: 60px 20px;
+            display: none;
+        }
+        .spinner {
+            border: 4px solid var(--border-color);
+            border-top: 4px solid var(--accent-primary);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        /* Error */
+        .error {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid var(--accent-danger);
+            color: var(--accent-danger);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        
+        /* Quick buttons */
+        .quick-stocks {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+        .quick-stocks span {
+            color: var(--text-secondary);
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+        }
+        .stock-btn {
+            padding: 8px 16px;
+            background: transparent;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-primary);
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+        .stock-btn:hover {
+            background: var(--accent-primary);
+            color: #000;
+            border-color: var(--accent-primary);
+        }
+        
+        /* Sentiment */
+        .sentiment-box {
+            margin-top: 15px;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.2);
+            border-left: 3px solid var(--accent-primary);
+            border-radius: 4px;
+            display: none;
+        }
+        textarea {
+            width: 100%;
+            min-height: 80px;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 12px;
+            color: var(--text-primary);
+            resize: vertical;
+            margin-bottom: 10px;
+        }
+        textarea:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+        }
+        
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .main-content { grid-template-columns: 1fr; }
+            .indicators-grid { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 768px) {
+            h1 { font-size: 24px; }
+            .header-content { flex-direction: column; }
+            .search-box { width: 100%; }
+            input[type="text"] { flex: 1; }
+            .stock-price { font-size: 28px; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>IDX STOCK TERMINAL</h1>
-            <div class="search-box">
-                <input type="text" id="symbolInput" placeholder="Kode saham (BBCA)" value="BBCA">
-                <button onclick="loadStock()" id="loadBtn">LOAD</button>
+    <header>
+        <div class="container">
+            <div class="header-content">
+                <h1><i class="fas fa-chart-line"></i> IDX STOCK TERMINAL</h1>
+                <div class="search-box">
+                    <input type="text" id="symbolInput" placeholder="Kode saham (BBCA)" value="BBCA">
+                    <button onclick="loadStock()" id="loadBtn"><i class="fas fa-search"></i> LOAD</button>
+                </div>
             </div>
-        </header>
+        </div>
+    </header>
+
+    <div class="container">
         <div class="quick-stocks">
-            <span style="color:#666;font-size:12px;">Cepat:</span>
+            <span><i class="fas fa-bolt"></i> Quick:</span>
             <button class="stock-btn" onclick="setSymbol('BBCA')">BBCA</button>
             <button class="stock-btn" onclick="setSymbol('BBRI')">BBRI</button>
             <button class="stock-btn" onclick="setSymbol('TLKM')">TLKM</button>
             <button class="stock-btn" onclick="setSymbol('ASII')">ASII</button>
+            <button class="stock-btn" onclick="setSymbol('GOTO')">GOTO</button>
         </div>
+
         <div id="errorBox" class="error"></div>
-        <div id="loading" class="loading">Memuat data...</div>
-        <div id="mainContent" class="main-content" style="display:none">
-            <div class="card">
-                <h2>Chart & Analisis</h2>
-                <div class="stock-info">
-                    <div><div style="font-size:14px;color:#666" id="stockSymbol">BBCA</div><div class="stock-price" id="stockPrice">Rp 0</div></div>
-                    <div class="stock-change" id="stockChange">0%</div>
-                </div>
-                <div class="chart-container"><canvas id="stockChart"></canvas></div>
-                <div class="stats-grid">
-                    <div class="stat-item"><div class="stat-label">High</div><div class="stat-value" id="statHigh">-</div></div>
-                    <div class="stat-item"><div class="stat-label">Low</div><div class="stat-value" id="statLow">-</div></div>
-                    <div class="stat-item"><div class="stat-label">Volume</div><div class="stat-value" id="statVolume">-</div></div>
-                    <div class="stat-item"><div class="stat-label">Open</div><div class="stat-value" id="statOpen">-</div></div>
-                    <div class="stat-item"><div class="stat-label">Prev Close</div><div class="stat-value" id="statPrevClose">-</div></div>
-                    <div class="stat-item"><div class="stat-label">Range</div><div class="stat-value" id="statRange">-</div></div>
-                </div>
-            </div>
-            <div class="sidebar">
+        <div id="loading" class="loading">
+            <div class="spinner"></div>
+            <p>Memuat data...</p>
+        </div>
+
+        <div id="mainContent" style="display: none;">
+            <div>
                 <div class="card">
-                    <h2>Analisa Sentimen</h2>
-                    <textarea id="newsText" placeholder="Tempel berita finansial..."></textarea>
-                    <button onclick="analyzeSentiment()" style="width:100%">Analisa</button>
-                    <div id="sentimentResult" class="sentiment-result">
-                        <div><strong>Sentimen:</strong> <span id="sentimentLabel">-</span></div>
-                        <div style="margin-top:5px"><strong>Keyakinan:</strong> <span id="sentimentConfidence">-</span></div>
+                    <h2><i class="fas fa-candlestick-chart"></i> Chart & Analisis</h2>
+                    <div class="stock-info">
+                        <div class="stock-price-section">
+                            <h3 id="stockSymbol">BBCA</h3>
+                            <div class="stock-price" id="stockPrice">Rp 0</div>
+                        </div>
+                        <div class="stock-change" id="stockChange">0%</div>
+                    </div>
+                    <div class="chart-container"><canvas id="stockChart"></canvas></div>
+                </div>
+
+                <div class="card">
+                    <h2><i class="fas fa-gauge"></i> Indikator Teknikal</h2>
+                    <div class="indicators-grid">
+                        <div class="indicator">
+                            <div class="indicator-label">RSI (14)</div>
+                            <div class="indicator-value" id="indRSI">-</div>
+                        </div>
+                        <div class="indicator">
+                            <div class="indicator-label">MACD</div>
+                            <div class="indicator-value" id="indMACD">-</div>
+                        </div>
+                        <div class="indicator">
+                            <div class="indicator-label">VWAP</div>
+                            <div class="indicator-value" id="indVWAP">-</div>
+                        </div>
+                        <div class="indicator">
+                            <div class="indicator-label">ATR</div>
+                            <div class="indicator-value" id="indATR">-</div>
+                        </div>
+                        <div class="indicator">
+                            <div class="indicator-label">Stochastic K</div>
+                            <div class="indicator-value" id="indStoch">-</div>
+                        </div>
+                        <div class="indicator">
+                            <div class="indicator-label">ADX</div>
+                            <div class="indicator-value" id="indADX">-</div>
+                        </div>
                     </div>
                 </div>
+
                 <div class="card">
-                    <h2>Prediksi</h2>
-                    <div style="text-align:center;padding:20px">
-                        <div style="font-size:12px;color:#666;margin-bottom:10px">Estimasi Range (95% CI)</div>
-                        <div style="display:flex;justify-content:space-between;margin-bottom:10px">
-                            <span style="color:#ff3d00">Lower: <strong id="predLower">-</strong></span>
-                            <span style="color:#00c853">Upper: <strong id="predUpper">-</strong></span>
+                    <h2><i class="fas fa-bar-chart"></i> Data Saham</h2>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-label">High</div>
+                            <div class="stat-value" id="statHigh">-</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Low</div>
+                            <div class="stat-value" id="statLow">-</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Open</div>
+                            <div class="stat-value" id="statOpen">-</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Prev Close</div>
+                            <div class="stat-value" id="statPrevClose">-</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Volume</div>
+                            <div class="stat-value" id="statVolume">-</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">52W High</div>
+                            <div class="stat-value" id="stat52H">-</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sidebar">
+                <div class="card">
+                    <h2><i class="fas fa-robot"></i> Trading Decision</h2>
+                    <div id="decisionBox" class="decision-box decision-hold">
+                        <div class="decision-action" id="decisionAction">HOLD</div>
+                        <div class="decision-confidence">Confidence: <span id="decisionConfidence">50%</span></div>
+                        <div class="confidence-bar">
+                            <div class="confidence-fill" id="confidenceFill" style="width: 50%"></div>
+                        </div>
+                        <div class="decision-details">
+                            <p style="margin-bottom: 10px;" id="decisionReason">Tunggu analisis...</p>
+                            <p><strong>Target:</strong> <span class="price-target" id="targetPrice">-</span></p>
+                            <p><strong>Stop Loss:</strong> <span class="stop-loss" id="stopLoss">-</span></p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2><i class="fas fa-brain"></i> Prediksi Range</h2>
+                    <div style="text-align: center; padding: 20px;">
+                        <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 15px;">Estimasi Range (95% CI)</div>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                            <span style="color: var(--accent-danger);">Lower: <strong id="predLower">-</strong></span>
+                            <span style="color: var(--accent-success);">Upper: <strong id="predUpper">-</strong></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2><i class="fas fa-heart-pulse"></i> Support & Resistance</h2>
+                    <div class="indicators-grid">
+                        <div class="indicator">
+                            <div class="indicator-label">R1</div>
+                            <div class="indicator-value" id="sr-r1">-</div>
+                        </div>
+                        <div class="indicator">
+                            <div class="indicator-label">R2</div>
+                            <div class="indicator-value" id="sr-r2">-</div>
+                        </div>
+                        <div class="indicator">
+                            <div class="indicator-label">Pivot</div>
+                            <div class="indicator-value" id="sr-pivot">-</div>
+                        </div>
+                        <div class="indicator">
+                            <div class="indicator-label">S1</div>
+                            <div class="indicator-value" id="sr-s1">-</div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
     <script>
-let stockChart=null;
-const fmtRupiah=n=>'Rp '+n.toLocaleString('id-ID');
-const fmtPct=n=>(n>=0?'+':'')+n.toFixed(2)+'%';
-const setSymbol=s=>{document.getElementById('symbolInput').value=s;loadStock();};
-function genData(sym){
-    const b=Math.random()*5000+1000,c=(Math.random()-0.5)*200,candles=[],now=Date.now();
-    for(let i=30;i>=0;i--){const d=new Date(now-i*864e5),o=b+Math.random()*100-50,cl=o+Math.random()*100-50;
-        candles.push({date:d.toISOString().split('T')[0],open:o,high:Math.max(o,cl)+Math.random()*50,low:Math.min(o,cl)-Math.random()*50,close:cl,volume:Math.floor(Math.random()*1e7)});}
-    return{symbol:sym,current_price:b+c,change_percent:(c/b)*100,candles,high:b+Math.random()*200,low:b-Math.random()*200,open:b-Math.random()*50,prev_close:b-c,volume:Math.floor(Math.random()*1e7),prediction_interval:{lower_95:(b+c)*0.95,upper_95:(b+c)*1.05}};
-}
-async function loadStock(){
-    const sym=document.getElementById('symbolInput').value.toUpperCase().trim();
-    if(!sym){alert('Masukkan kode saham!');return;}
-    document.getElementById('loading').style.display='block';
-    document.getElementById('mainContent').style.display='none';
-    document.getElementById('errorBox').style.display='none';
-    document.getElementById('loadBtn').disabled=true;
-    try{const r=await fetch('http://localhost:8000/api/stock/'+sym);if(!r.ok)throw 0;displayData(await r.json());}
-    catch(e){displayData(genData(sym));showInfo('Mode demo (backend tidak tersedia)');}
-    document.getElementById('loading').style.display='none';
-    document.getElementById('loadBtn').disabled=false;
-}
-function displayData(d){
-    document.getElementById('mainContent').style.display='grid';
-    document.getElementById('stockSymbol').textContent=d.symbol;
-    document.getElementById('stockPrice').textContent=fmtRupiah(d.current_price);
-    const ce=document.getElementById('stockChange');
-    ce.textContent=fmtPct(d.change_percent);
-    ce.className='stock-change '+(d.change_percent>=0?'positive':'negative');
-    document.getElementById('statHigh').textContent=fmtRupiah(d.high||d.candles[d.candles.length-1].high);
-    document.getElementById('statLow').textContent=fmtRupiah(d.low||d.candles[d.candles.length-1].low);
-    document.getElementById('statVolume').textContent=(d.volume||d.candles[d.candles.length-1].volume).toLocaleString('id-ID');
-    document.getElementById('statOpen').textContent=fmtRupiah(d.open||d.candles[0].open);
-    document.getElementById('statPrevClose').textContent=fmtRupiah(d.prev_close||d.candles[d.candles.length-2].close);
-    document.getElementById('statRange').textContent=fmtRupiah((d.high||d.candles[d.candles.length-1].high)-(d.low||d.candles[d.candles.length-1].low));
-    if(d.prediction_interval){document.getElementById('predLower').textContent=fmtRupiah(d.prediction_interval.lower_95);document.getElementById('predUpper').textContent=fmtRupiah(d.prediction_interval.upper_95);}
-    renderChart(d.candles);
-}
-function renderChart(candles){
-    const ctx=document.getElementById('stockChart').getContext('2d');
-    if(stockChart)stockChart.destroy();
-    stockChart=new Chart(ctx,{type:'line',data:{labels:candles.map(c=>c.date),datasets:[{label:'Harga',data:candles.map(c=>c.close),borderColor:'#f59e0b',backgroundColor:'rgba(245,158,11,0.1)',borderWidth:2,fill:true,tension:0.4,pointRadius:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:'#333'},ticks:{color:'#666',maxTicksLimit:10}},y:{grid:{color:'#333'},ticks:{color:'#666',callback:v=>'Rp '+v.toLocaleString('id-ID')}}}}});
-}
-function analyzeSentiment(){
-    const t=document.getElementById('newsText').value.trim();
-    if(!t){alert('Masukkan teks berita!');return;}
-    const sents=['Positive','Negative','Neutral'],s=sents[Math.floor(Math.random()*3)],c=(Math.random()*0.4+0.6).toFixed(2);
-    document.getElementById('sentimentResult').style.display='block';
-    document.getElementById('sentimentLabel').textContent=s;
-    document.getElementById('sentimentLabel').style.color=s==='Positive'?'#00c853':s==='Negative'?'#ff3d00':'#f59e0b';
-    document.getElementById('sentimentConfidence').textContent=(c*100).toFixed(1)+'%';
-}
-function showInfo(m){const e=document.getElementById('errorBox');e.textContent=m;e.style.background='rgba(245,158,11,0.1)';e.style.borderColor='#f59e0b';e.style.color='#f59e0b';e.style.display='block';setTimeout(()=>e.style.display='none',5000);}
-document.getElementById('symbolInput').addEventListener('keypress',e=>{if(e.key==='Enter')loadStock();});
-window.onload=loadStock;
+        const API_URL = 'http://localhost:8000';
+        let stockChart = null;
+
+        const fmtRupiah = n => 'Rp ' + Math.round(n).toLocaleString('id-ID');
+        const fmtPct = n => (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
+
+        const setSymbol = s => {
+            document.getElementById('symbolInput').value = s;
+            loadStock();
+        };
+
+        async function loadStock() {
+            const sym = document.getElementById('symbolInput').value.toUpperCase().trim();
+            if (!sym) { alert('Masukkan kode saham!'); return; }
+
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('mainContent').style.display = 'none';
+            document.getElementById('errorBox').style.display = 'none';
+            document.getElementById('loadBtn').disabled = true;
+
+            try {
+                const response = await fetch(`${API_URL}/api/stock/${sym}`);
+                if (!response.ok) throw new Error('Gagal memuat data');
+                const data = await response.json();
+                displayData(data);
+            } catch (e) {
+                showError('Error: ' + e.message);
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('loadBtn').disabled = false;
+            }
+        }
+
+        function displayData(d) {
+            document.getElementById('mainContent').style.display = 'grid';
+            document.getElementById('stockSymbol').textContent = d.symbol;
+            document.getElementById('stockPrice').textContent = fmtRupiah(d.current_price);
+            
+            const ce = document.getElementById('stockChange');
+            ce.textContent = fmtPct(d.change_percent);
+            ce.className = 'stock-change ' + (d.change_percent >= 0 ? 'positive' : 'negative');
+
+            // Stats
+            const lastCandle = d.candles[d.candles.length - 1];
+            document.getElementById('statHigh').textContent = fmtRupiah(lastCandle.high);
+            document.getElementById('statLow').textContent = fmtRupiah(lastCandle.low);
+            document.getElementById('statOpen').textContent = fmtRupiah(lastCandle.open);
+            document.getElementById('statPrevClose').textContent = fmtRupiah(d.prev_close);
+            document.getElementById('statVolume').textContent = (lastCandle.volume / 1e6).toFixed(1) + 'M';
+            document.getElementById('stat52H').textContent = fmtRupiah(d.high_52w);
+
+            // Indicators
+            const ind = d.indicators;
+            document.getElementById('indRSI').textContent = ind.rsi_14 ? ind.rsi_14.toFixed(1) : '-';
+            document.getElementById('indMACD').textContent = ind.macd ? ind.macd.toFixed(2) : '-';
+            document.getElementById('indVWAP').textContent = ind.vwap ? fmtRupiah(ind.vwap) : '-';
+            document.getElementById('indATR').textContent = ind.atr ? fmtRupiah(ind.atr) : '-';
+            document.getElementById('indStoch').textContent = ind.stochastic_k ? ind.stochastic_k.toFixed(1) : '-';
+            document.getElementById('indADX').textContent = ind.adx ? ind.adx.toFixed(1) : '-';
+
+            // Support & Resistance
+            document.getElementById('sr-r1').textContent = fmtRupiah(ind.resistance_1 || 0);
+            document.getElementById('sr-r2').textContent = fmtRupiah(ind.resistance_2 || 0);
+            document.getElementById('sr-pivot').textContent = fmtRupiah(ind.pivot_point || 0);
+            document.getElementById('sr-s1').textContent = fmtRupiah(ind.support_1 || 0);
+
+            // Trading Decision
+            const decision = d.trading_decision;
+            const decBox = document.getElementById('decisionBox');
+            decBox.className = 'decision-box decision-' + decision.action.toLowerCase();
+            document.getElementById('decisionAction').textContent = decision.action;
+            document.getElementById('decisionConfidence').textContent = (decision.confidence * 100).toFixed(0) + '%';
+            document.getElementById('confidenceFill').style.width = (decision.confidence * 100) + '%';
+            document.getElementById('decisionReason').textContent = decision.reason;
+            document.getElementById('targetPrice').textContent = fmtRupiah(decision.target_price);
+            document.getElementById('stopLoss').textContent = fmtRupiah(decision.stop_loss);
+
+            // Prediction
+            document.getElementById('predLower').textContent = fmtRupiah(d.prediction_interval.lower_95);
+            document.getElementById('predUpper').textContent = fmtRupiah(d.prediction_interval.upper_95);
+
+            // Chart
+            renderChart(d.candles);
+        }
+
+        function renderChart(candles) {
+            const ctx = document.getElementById('stockChart').getContext('2d');
+            if (stockChart) stockChart.destroy();
+
+            stockChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: candles.map(c => c.date),
+                    datasets: [{
+                        label: 'Harga',
+                        data: candles.map(c => c.close),
+                        borderColor: '#f59e0b',
+                        backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: false, grid: { color: 'rgba(255, 255, 255, 0.1)' } },
+                        x: { grid: { display: false } }
+                    }
+                }
+            });
+        }
+
+        function showError(msg) {
+            const e = document.getElementById('errorBox');
+            e.textContent = msg;
+            e.style.display = 'block';
+        }
+
+        document.getElementById('symbolInput').addEventListener('keypress', e => {
+            if (e.key === 'Enter') loadStock();
+        });
+
+        window.onload = loadStock;
     </script>
 </body>
 </html>
