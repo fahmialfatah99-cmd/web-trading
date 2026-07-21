@@ -1,0 +1,14 @@
+fastapi
+uvicorn
+pydantic
+pandas
+pandas_ta
+numpy
+yfinance
+scikit-learn
+torch
+transformers
+accelerate
+sqlmodel
+aiohttp
+python-dotenv
