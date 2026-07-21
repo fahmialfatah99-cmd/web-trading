@@ -5,7 +5,7 @@ import { createChart, ColorType, IChartApi, ISeriesApi } from 'lightweight-chart
 import { StockData } from '@/types';
 
 interface ChartProps {
-   StockData | null;
+  data: StockData | null;
 }
 
 export default function ChartComponent({ data }: ChartProps) {
@@ -14,10 +14,10 @@ export default function ChartComponent({ data }: ChartProps) {
   const candleSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
   const vwapSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
 
+  // Initialize chart on mount
   useEffect(() => {
     if (!chartContainerRef.current) return;
 
-    // Initialize Chart
     const chart = createChart(chartContainerRef.current, {
       layout: {
         background: { type: ColorType.Solid, color: '#0a0a0a' },
@@ -70,7 +70,7 @@ export default function ChartComponent({ data }: ChartProps) {
     };
   }, []);
 
-  // Update Data when props change - optimized with useMemo
+  // Prepare chart data with useMemo for optimization
   const chartData = useMemo(() => {
     if (!data) return { candles: [], vwapData: [] };
 
@@ -90,14 +90,12 @@ export default function ChartComponent({ data }: ChartProps) {
     return { candles, vwapData };
   }, [data]);
 
+  // Update chart when data changes
   useEffect(() => {
     if (!chartData.candles.length || !candleSeriesRef.current) return;
 
     candleSeriesRef.current.setData(chartData.candles);
-    
-    // Fit Content
     chartRef.current?.timeScale().fitContent();
-
   }, [chartData]);
 
   return <div ref={chartContainerRef} className="w-full h-[500px]" />;
