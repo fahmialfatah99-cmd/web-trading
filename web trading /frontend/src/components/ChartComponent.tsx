@@ -5,7 +5,7 @@ import { createChart, ColorType, IChartApi, ISeriesApi } from 'lightweight-chart
 import { StockData } from '@/types';
 
 interface ChartProps {
-   StockData | null;
+  data: StockData | null;
 }
 
 export default function ChartComponent({ data }: ChartProps) {
@@ -94,7 +94,7 @@ export default function ChartComponent({ data }: ChartProps) {
     if (!chartData.candles.length || !candleSeriesRef.current) return;
 
     candleSeriesRef.current.setData(chartData.candles);
-    
+
     // Fit Content
     chartRef.current?.timeScale().fitContent();
 

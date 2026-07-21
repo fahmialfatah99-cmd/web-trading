@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useStore } from '@/store/useStore';
 import ChartComponent from '@/components/ChartComponent';
 import axios from 'axios';
@@ -58,8 +58,8 @@ export default function Dashboard() {
       <header className="flex justify-between items-center mb-8 border-b border-bloomberg-border pb-4">
         <h1 className="text-2xl font-bold text-bloomberg-accent">IDX QUANT TERMINAL</h1>
         <div className="flex gap-4">
-          <input 
-            type="text" 
+          <input
+            type="text"
             value={selectedSymbol}
             onChange={(e) => setSymbol(e.target.value.toUpperCase())}
             className="bg-bloomberg-panel border border-bloomberg-border p-2 rounded text-white focus:outline-none focus:border-bloomberg-accent"
@@ -75,9 +75,9 @@ export default function Dashboard() {
         <div className="flex justify-center items-center h-64">Initializing Quant Engine...</div>
       ) : stockData ? (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          
+
           {/* Main Chart Area */}
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="lg:col-span-2 bg-bloomberg-panel border border-bloomberg-border rounded-lg p-4"
@@ -89,7 +89,7 @@ export default function Dashboard() {
               </span>
             </div>
             <ChartComponent data={stockData} />
-            
+
             {/* Stats Grid */}
             <div className="grid grid-cols-3 gap-4 mt-4 text-sm">
               <div className="bg-black/30 p-2 rounded">
@@ -111,24 +111,24 @@ export default function Dashboard() {
 
           {/* Sidebar: AI & Tools */}
           <div className="space-y-6">
-            
+
             {/* Sentiment Analysis */}
             <div className="bg-bloomberg-panel border border-bloomberg-border rounded-lg p-4">
               <h3 className="text-lg font-bold mb-2 text-bloomberg-accent">AI Sentiment (FinBERT)</h3>
-              <textarea 
+              <textarea
                 className="w-full bg-black/50 border border-bloomberg-border rounded p-2 text-sm text-white mb-2"
                 rows={4}
                 placeholder="Paste Indonesian financial news here..."
                 value={newsText}
                 onChange={(e) => setNewsText(e.target.value)}
               />
-              <button 
+              <button
                 onClick={handleSentimentAnalysis}
                 className="w-full bg-blue-900 hover:bg-blue-800 text-white py-2 rounded text-sm"
               >
                 Analyze Sentiment
               </button>
-              
+
               {sentimentRes && (
                 <div className="mt-4 p-3 bg-black/50 rounded border-l-4 border-bloomberg-accent">
                   <div className="flex justify-between">

@@ -7,8 +7,8 @@ interface AppState {
   sentiment: Sentiment | null;
   loading: boolean;
   setSymbol: (symbol: string) => void;
-  setStockData: ( StockData) => void;
-  setSentiment: ( Sentiment) => void;
+  setStockData: (data: StockData) => void;
+  setSentiment: (data: Sentiment) => void;
   setLoading: (status: boolean) => void;
 }
 
