@@ -377,4 +377,7 @@ async def run_backtest(symbol: str, period: str = "2y"):
         # Re-calc indicators needed for strategy inside the backtest function
         # For simplicity, we pass raw OHLCV to the backtest engine which adds SMAs
         result = run_walk_forward_backtest(df)
-        return BacktestResult
+        return BacktestResult(**result)
+    except Exception as e:
+        logger.error(f"Error running backtest: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
