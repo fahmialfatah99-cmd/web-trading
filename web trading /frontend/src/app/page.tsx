@@ -11,6 +11,15 @@ export default function Dashboard() {
   const [newsText, setNewsText] = useState("");
   const [sentimentRes, setSentimentRes] = useState<any>(null);
 
+  // Debounce function to prevent rapid API calls
+  const debounce = (fn: Function, ms: number) => {
+    let timeoutId: NodeJS.Timeout;
+    return (...args: any[]) => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => fn(...args), ms);
+    };
+  };
+
   const fetchStockData = async () => {
     setLoading(true);
     try {
@@ -22,6 +31,12 @@ export default function Dashboard() {
       setLoading(false);
     }
   };
+
+  // Memoized fetch to prevent unnecessary re-fetches
+  const debouncedFetchStockData = useMemo(
+    () => debounce(fetchStockData, 300),
+    [selectedSymbol]
+  );
 
   const handleSentimentAnalysis = async () => {
     if(!newsText) return;

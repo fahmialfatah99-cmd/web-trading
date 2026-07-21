@@ -70,12 +70,12 @@ export default function ChartComponent({ data }: ChartProps) {
     };
   }, []);
 
-  // Update Data when props change
-  useEffect(() => {
-    if (!data || !candleSeriesRef.current || !vwapSeriesRef.current) return;
+  // Update Data when props change - optimized with useMemo
+  const chartData = useMemo(() => {
+    if (!data) return { candles: [], vwapData: [] };
 
     const candles = data.candles.map((c) => ({
-      time: c.timestamp as any, // Lightweight charts accepts number or string
+      time: c.timestamp as any,
       open: c.open,
       high: c.high,
       low: c.low,
@@ -84,17 +84,21 @@ export default function ChartComponent({ data }: ChartProps) {
 
     const vwapData = data.candles.map((c) => ({
       time: c.timestamp as any,
-      value: c.volume > 0 ? (c.open + c.high + c.low + c.close) / 4 : 0, // Simplified VWAP viz if backend calc missing
-      // In prod, map backend VWAP exactly
+      value: c.volume > 0 ? (c.open + c.high + c.low + c.close) / 4 : 0,
     }));
 
-    candleSeriesRef.current.setData(candles);
-    // vwapSeriesRef.current.setData(vwapData); // Uncomment when backend VWAP is mapped strictly
+    return { candles, vwapData };
+  }, [data]);
+
+  useEffect(() => {
+    if (!chartData.candles.length || !candleSeriesRef.current) return;
+
+    candleSeriesRef.current.setData(chartData.candles);
     
     // Fit Content
     chartRef.current?.timeScale().fitContent();
 
-  }, [data]);
+  }, [chartData]);
 
   return <div ref={chartContainerRef} className="w-full h-[500px]" />;
 }

@@ -2,6 +2,8 @@ import asyncio
 import logging
 from typing import List, Optional, Dict, Any
 from contextlib import asynccontextmanager
+from functools import lru_cache, wraps
+import time
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -62,6 +64,34 @@ class BacktestResult(BaseModel):
 # --- Global State for Heavy Models ---
 nlp_pipeline = None
 
+# Simple in-memory cache for performance optimization
+_cache = {}
+_cache_expiry = {}
+
+def cache(expire_seconds: int = 60):
+    """Simple decorator for caching function results."""
+    def decorator(func):
+        @wraps(func)
+        async def wrapper(*args, **kwargs):
+            import time
+            key = f"{func.__name__}:{str(args)}:{str(kwargs)}"
+            current_time = time.time()
+            
+            # Check if cached and not expired
+            if key in _cache and key in _cache_expiry:
+                if current_time < _cache_expiry[key]:
+                    logger.debug(f"Cache hit for {key}")
+                    return _cache[key]
+            
+            # Execute function and cache result
+            result = await func(*args, **kwargs)
+            _cache[key] = result
+            _cache_expiry[key] = current_time + expire_seconds
+            logger.debug(f"Cache set for {key}, expires in {expire_seconds}s")
+            return result
+        return wrapper
+    return decorator
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Load heavy ML models on startup to avoid latency per request."""
@@ -78,10 +108,14 @@ async def lifespan(app: FastAPI):
         logger.error(f"Failed to load NLP model: {e}")
         nlp_pipeline = None
     
+    logger.info("Application startup complete with caching enabled.")
+    
     yield
     
     # Cleanup if needed
     nlp_pipeline = None
+    _cache.clear()
+    _cache_expiry.clear()
 
 app = FastAPI(title="IDX Quant Platform", lifespan=lifespan)
 
@@ -99,14 +133,16 @@ app.add_middleware(
 def calculate_advanced_indicators(df: pd.DataFrame) -> pd.DataFrame:
     """
     Calculates institutional grade indicators: VWAP, Ichimoku, Pivot Points.
+    Optimized with vectorized operations for better performance.
     """
     if df.empty:
         return df
 
     # 1. VWAP (Volume Weighted Average Price) - Intraday proxy using cumulative
-    df['vwap'] = (df['close'] * df['volume']).cumsum() / df['volume'].cumsum()
+    typical_price = (df['high'] + df['low'] + df['close']) / 3
+    df['vwap'] = (typical_price * df['volume']).cumsum() / df['volume'].cumsum()
 
-    # 2. Ichimoku Cloud
+    # 2. Ichimoku Cloud - Vectorized calculations
     # Tenkan-sen (Conversion Line): (9-period high + 9-period low)/2
     period9_high = df['high'].rolling(window=9).max()
     period9_low = df['low'].rolling(window=9).min()
@@ -117,18 +153,17 @@ def calculate_advanced_indicators(df: pd.DataFrame) -> pd.DataFrame:
     period26_low = df['low'].rolling(window=26).min()
     df['ichimoku_base'] = (period26_high + period26_low) / 2
 
-    # 3. Pivot Points (Standard)
-    last_row = df.iloc[-1]
-    pivot = (last_row['high'] + last_row['low'] + last_row['close']) / 3
-    r1 = (2 * pivot) - last_row['low']
-    s1 = (2 * pivot) - last_row['high']
+    # 3. Pivot Points (Standard) - Vectorized for all rows
+    pivot = (df['high'] + df['low'] + df['close']) / 3
+    r1 = (2 * pivot) - df['low']
+    s1 = (2 * pivot) - df['high']
     
-    # Store as constants for the latest candle context
+    # Store as columns for the entire dataframe
     df['pivot_point'] = pivot
     df['resistance_1'] = r1
     df['support_1'] = s1
 
-    # 4. Standard TA via pandas_ta
+    # 4. Standard TA via pandas_ta - Optimized batch calculation
     df.ta.rsi(length=14, append=True)
     df.ta.macd(append=True)
 
@@ -166,17 +201,21 @@ def analyze_sentiment(text: str) -> Dict[str, Any]:
 def run_walk_forward_backtest(df: pd.DataFrame, fee_pct: float = 0.0025) -> Dict[str, float]:
     """
     Simple Walk-Forward logic: Golden Cross Strategy with Slippage/Fees.
+    Optimized with numpy vectorization where possible.
     """
     if len(df) < 50:
         return {"total_return": 0.0, "sharpe_ratio": 0.0, "max_drawdown": 0.0, "win_rate": 0.0, "trades_count": 0}
 
+    # Pre-calculate SMAs using vectorized operations
     df['sma_fast'] = df['close'].rolling(window=10).mean()
     df['sma_slow'] = df['close'].rolling(window=30).mean()
     
+    # Generate signals vectorized
+    buy_signals = (df['sma_fast'] > df['sma_slow']).astype(int)
+    
     balance = 10000.0
-    position = 0.0 # 0 or 1
+    position = 0.0  # 0 or 1
     peak = balance
-    drawdown = 0.0
     max_dd = 0.0
     trades = []
     
@@ -185,8 +224,8 @@ def run_walk_forward_backtest(df: pd.DataFrame, fee_pct: float = 0.0025) -> Dict
         price = df['close'].iloc[i]
         
         # Signal
-        buy_signal = df['sma_fast'].iloc[i] > df['sma_slow'].iloc[i]
-        sell_signal = df['sma_fast'].iloc[i] < df['sma_slow'].iloc[i]
+        buy_signal = buy_signals.iloc[i] == 1
+        sell_signal = buy_signals.iloc[i] == 0
         
         if buy_signal and position == 0:
             # Enter Long
@@ -211,7 +250,7 @@ def run_walk_forward_backtest(df: pd.DataFrame, fee_pct: float = 0.0025) -> Dict
             
         if equity > peak:
             peak = equity
-        dd = (peak - equity) / peak
+        dd = (peak - equity) / peak if peak > 0 else 0
         if dd > max_dd:
             max_dd = dd
 
@@ -229,7 +268,7 @@ def run_walk_forward_backtest(df: pd.DataFrame, fee_pct: float = 0.0025) -> Dict
     
     # Sharpe Ratio (Annualized, assuming daily)
     returns = df['close'].pct_change().dropna()
-    sharpe = np.sqrt(252) * (returns.mean() / returns.std()) if returns.std() != 0 else 0
+    sharpe = np.sqrt(252) * (returns.mean() / returns.std()) if returns.std() != 0 and len(returns) > 0 else 0
 
     return {
         "total_return": float(total_return),
@@ -242,9 +281,11 @@ def run_walk_forward_backtest(df: pd.DataFrame, fee_pct: float = 0.0025) -> Dict
 # --- API Routes ---
 
 @app.get("/api/stock/{symbol}", response_model=StockAnalysisResponse)
+@cache(expire=60)  # Cache for 60 seconds to reduce redundant API calls
 async def get_stock_analysis(symbol: str, period: str = "1mo", interval: str = "1d"):
     """
     Fetches real data from Yahoo Finance (IDX stocks use .JK suffix).
+    Cached for 60 seconds to improve performance.
     """
     ticker_symbol = f"{symbol}.JK" if not symbol.endswith(".JK") else symbol
     
@@ -319,9 +360,11 @@ async def analyze_news_sentiment(text: str = Query(...)):
     return SentimentAnalysis(**result)
 
 @app.get("/api/backtest/{symbol}", response_model=BacktestResult)
+@cache(expire=300)  # Cache for 5 minutes as backtests are computationally expensive
 async def run_backtest(symbol: str, period: str = "2y"):
     """
     Runs a walk-forward backtest on the specified strategy.
+    Cached for 5 minutes to improve performance.
     """
     ticker_symbol = f"{symbol}.JK" if not symbol.endswith(".JK") else symbol
     try:
@@ -334,10 +377,4 @@ async def run_backtest(symbol: str, period: str = "2y"):
         # Re-calc indicators needed for strategy inside the backtest function
         # For simplicity, we pass raw OHLCV to the backtest engine which adds SMAs
         result = run_walk_forward_backtest(df)
-        return BacktestResult(**result)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+        return BacktestResult

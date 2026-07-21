@@ -12,3 +12,4 @@ accelerate
 sqlmodel
 aiohttp
 python-dotenv
+fastapi-cache2
